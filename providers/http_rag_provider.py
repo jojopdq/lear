@@ -6,13 +6,15 @@ from lear.rag_provider import RAGProvider
 
 
 class HttpRagProvider(RAGProvider):
-    def __init__(self, mode: str):
+    def __init__(self, mode: str, url: str, access_token: str):
         super().__init__(mode)
         self.resp = None
+        self.url = url
+        self.access_token = access_token
 
     def ask(self, question: str):
-        headers = {'Authorization': 'Bearer abc123'}
-        url = f'http://305-server:5566/ask?mode={self.name}&question={question}'
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        url = f'{self.url}/ask?mode={self.name}&question={question}'
         resp = httpx.get(url, headers=headers, timeout=90)
         if resp.status_code == 200:
             return resp.json()

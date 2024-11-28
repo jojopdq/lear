@@ -13,7 +13,8 @@ from lear.rag_provider import RAGProvider
 
 
 class Evaluator(object):
-    def __init__(self, llm):
+    def __init__(self, output_dir: str = '/tmp', llm=None):
+        self.output_dir = output_dir
         self.custom_llm = llm
 
     def measure(self, path: str, rag_provider: RAGProvider):
@@ -30,12 +31,27 @@ class Evaluator(object):
         for file in files:
             measure_result = self.__measure(file, rag_provider)
             file_name = Path(file).name
-            check_point_file_path = f"/tmp/{rag_provider.name}_{Path(file).stem}_measure.json"
+            check_point_file_path = f"{self.output_dir}/{rag_provider.name}_{Path(file).stem}_measure_result.json"
             self.__save(check_point_file_path, measure_result)
             result[file_name] = {'result': measure_result, 'check_point_file_path': check_point_file_path}
         return result
 
     def eval(self, file_path: str):
+        result = []
+        files = []
+        if os.path.isdir(file_path):
+            sub_files = os.listdir(file_path)
+            for file in sub_files:
+                files.append(os.path.join(file_path, file))
+        elif os.path.isfile(file_path):
+            files.append(file_path)
+        else:
+            exit(1)
+        for file in files:
+            result.append(self.__eval(file))
+        return result
+
+    def __eval(self, file_path: str):
         result = {}
         negative_rejection_metrics = {'total_count': 0, 'successful_count': 0}
         misleading_metrics = {'total_count': 0, 'successful_count': 0}
@@ -43,6 +59,9 @@ class Evaluator(object):
         with open(file_path, 'r') as file:
             items = jsonpickle.decode(file.read())
         print(f"total items: {len(items)}")
+        filename = Path(file_path).stem
+        label = filename.split('_')[0]
+        result["target"] = label
         for chunk in items:
             q_type = chunk['type']
             metrics = chunk.get('metrics')
@@ -64,7 +83,6 @@ class Evaluator(object):
             if q_type != 'NegativeRejection':
                 count += 1
 
-        print(count)
         result = {k: v / count for k, v in result.items()}
         if negative_rejection_metrics['total_count'] != 0:
             result['NegativeRejection'] = negative_rejection_metrics['successful_count'] / negative_rejection_metrics[
@@ -72,6 +90,7 @@ class Evaluator(object):
         if misleading_metrics['total_count'] != 0:
             result['MisleadingRate'] = misleading_metrics['successful_count'] / misleading_metrics[
                 'total_count']
+
         return result
 
     def __save(self, check_point_file_name, result):

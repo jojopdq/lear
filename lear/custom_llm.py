@@ -1,16 +1,18 @@
+import os
+
 from deepeval.models import DeepEvalBaseLLM
 from openai import OpenAI
 
 
 class CustomLlm(DeepEvalBaseLLM):
     def __init__(self, *args, **kwargs):
-        self.model = OpenAI(
-            api_key="9e3d5d7d3ff2e74fc9c7e0684c3b6555.feSMhxTcgznEB07f",
-            base_url="https://open.bigmodel.cn/api/paas/v4/"
-        )
+        super().__init__(*args, **kwargs)
 
     def load_model(self):
-        return self.model
+        return OpenAI(
+            api_key=os.getenv('OPENAI_API_KEY'),
+            base_url=os.getenv("OPENAI_API_BASE"),
+        )
 
     def generate(self, prompt: str) -> str:
         completion = self.model.chat.completions.create(
@@ -27,4 +29,4 @@ class CustomLlm(DeepEvalBaseLLM):
         return self.generate(prompt)
 
     def get_model_name(self):
-        return "glm-4-air"
+        return os.getenv('OPENAI_API_PROVIDER')
